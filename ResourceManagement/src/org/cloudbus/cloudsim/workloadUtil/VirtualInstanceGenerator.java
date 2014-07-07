@@ -159,6 +159,7 @@ public class VirtualInstanceGenerator {
 		if(vm.getUsageTimeInSecond()>=1000)
 		vmList.add(vm);
 	}
+	//this method used to backup data to file
 	public void backupVm()
 	{
 		try{
@@ -232,14 +233,34 @@ public class VirtualInstanceGenerator {
 			long startedTime=uai.getStartedTime();
 			long endedTime=uai.getEndedTime();
 			this.vmcreated.add(userid+" "+startedTime+" "+endedTime+" "+ numberVm);
-			//System.out.println(userid+" "+startedTime+" "+endedTime+" "+ numberVm);
 			
 		}
 		
 	}
+	private void sortFinal()
+	{
+		Collections.sort(this.vmcreated, new Comparator<String>() {
+			@Override
+			public int compare(String o1, String o2) {
+				Long o1EndTime=new Long(o1.split(" ")[2]);
+				Long o2EndTime=new Long(o2.split(" ")[2]);
+				return(o1EndTime.compareTo(o2EndTime));
+				
+			}
+			
+		});
+	}
+	/**
+	 * write the final vm requests to file. This file will be filtered to return three categories of request, says ondemand, reservation and 
+	 * spot
+	 * @param fileName
+	 */
 	public void writeToFile(String fileName)
 	{
+		System.out.println("Group Vms by user id...");
 		groupVmbyUserId();
+		System.out.println("Sort the results by ascending order of the ended time of VM...");
+		sortFinal();
 		try{
 			File output=new File(fileName);
 			BufferedWriter writer=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(output)));
