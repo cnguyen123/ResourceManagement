@@ -242,9 +242,14 @@ public class VirtualInstanceGenerator {
 		Collections.sort(this.vmcreated, new Comparator<String>() {
 			@Override
 			public int compare(String o1, String o2) {
+				Long o1StartTime=new Long(o1.split(" ")[1]);
 				Long o1EndTime=new Long(o1.split(" ")[2]);
+				Long o1LifeTime=o1EndTime-o1StartTime;
+				
+				Long o2StartTime=new Long(o2.split(" ")[1]);
 				Long o2EndTime=new Long(o2.split(" ")[2]);
-				return(o1EndTime.compareTo(o2EndTime));
+				Long o2LifeTime=o2EndTime-o2StartTime; 
+				return(o1LifeTime.compareTo(o2LifeTime));
 				
 			}
 			
@@ -261,6 +266,7 @@ public class VirtualInstanceGenerator {
 		groupVmbyUserId();
 		System.out.println("Sort the results by ascending order of the ended time of VM...");
 		sortFinal();
+		System.out.println("Now saving data to the file:"+fileName);
 		try{
 			File output=new File(fileName);
 			BufferedWriter writer=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(output)));
