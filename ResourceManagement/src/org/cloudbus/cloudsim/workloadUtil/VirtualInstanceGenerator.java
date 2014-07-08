@@ -237,8 +237,12 @@ public class VirtualInstanceGenerator {
 		}
 		
 	}
+	
 	private void sortFinal()
 	{
+		System.out.println("Group Vms by user id...");
+		groupVmbyUserId();
+		System.out.println("Sort the results by ascending order of the ended time of VM...");
 		Collections.sort(this.vmcreated, new Comparator<String>() {
 			@Override
 			public int compare(String o1, String o2) {
@@ -262,11 +266,9 @@ public class VirtualInstanceGenerator {
 	 */
 	public void writeToFile(String fileName)
 	{
-		System.out.println("Group Vms by user id...");
-		groupVmbyUserId();
-		System.out.println("Sort the results by ascending order of the ended time of VM...");
+		
 		sortFinal();
-		System.out.println("Now saving data to the file:"+fileName);
+		System.out.println("Now saving data to the file:"+fileName+"...");
 		try{
 			File output=new File(fileName);
 			BufferedWriter writer=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(output)));
@@ -276,6 +278,7 @@ public class VirtualInstanceGenerator {
 			}
 			
 			writer.close();
+			System.out.println("Done!");
 		}
 		catch(FileNotFoundException ex)
 		{
@@ -295,6 +298,45 @@ public class VirtualInstanceGenerator {
 	private void setUserIdSet(Set<Integer> userSet) {
 		this.userIdSet = userSet;
 	}
+	/**
+	 * Get the maximum life time of Virtual instance in list of Vm, the returned value is in second
+	 * @return
+	 */
+	public VirtualInstance getMaxLifeVm()
+	{
+		//sort the vmlist in ascending order of the lifetime of VM
+		Collections.sort(this.getVmList(), new Comparator<VirtualInstance>() {
+			@Override
+			public int compare(VirtualInstance o1, VirtualInstance o2) {
+				
+				Long o1LifeTime=new Long(o1.getUsageTimeInSecond());
+				
+				Long o2LifeTime=new Long(o2.getUsageTimeInSecond()); 
+				return(o1LifeTime.compareTo(o2LifeTime));
+				
+			}
+			
+		});
+		return this.getVmList().get(this.getVmList().size()-1);
+	}
+	public VirtualInstance getMinLifeVm()
+	{
+		//sort the vmlist in ascending order of the lifetime of VM
+				Collections.sort(this.getVmList(), new Comparator<VirtualInstance>() {
+					@Override
+					public int compare(VirtualInstance o1, VirtualInstance o2) {
+						
+						Long o1LifeTime=new Long(o1.getUsageTimeInSecond());
+						
+						Long o2LifeTime=new Long(o2.getUsageTimeInSecond()); 
+						return(o1LifeTime.compareTo(o2LifeTime));
+						
+					}
+					
+				});
+				return this.getVmList().get(0);
+	}
+	
 
 
 }

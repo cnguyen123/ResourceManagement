@@ -6,10 +6,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
-
-import org.cloudbus.cloudsim.workloadUtil.User;
-import org.cloudbus.cloudsim.workloadUtil.UserAndInstance;
-import org.cloudbus.cloudsim.workloadUtil.VirtualInstance;
 import org.cloudbus.cloudsim.workloadUtil.VirtualInstanceGenerator;
 
 public class workloadgenerator {
@@ -19,8 +15,8 @@ public class workloadgenerator {
 			String fileName="data/vmrequests.csv";
 			VirtualInstanceGenerator viGenerator=new VirtualInstanceGenerator(fileName);
 			viGenerator.vmGenerate();
-			viGenerator.writeToFile("data/vm_user.txt");
-			
+			//viGenerator.writeToFile("data/vm_user.txt");
+			System.out.println(viGenerator.getMaxLifeVm().getUserId());
 			
 		}
 		catch(FileNotFoundException ex)
