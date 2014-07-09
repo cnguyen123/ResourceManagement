@@ -7,14 +7,15 @@ package org.cloudbus.cloudsim.requestCatergory;
 public class OndemandRequest extends Request  {
 
 	public OndemandRequest(int workloadId, long initialTime, long endTime,
-			double price, RequestType type) {
-		super(workloadId, initialTime, endTime, price, type);
+			double price) {
+		super(workloadId, initialTime, endTime, price, RequestType.ONDEMAND);
 		// TODO Auto-generated constructor stub
 	}
 
 	public OndemandRequest(int workloadId)
 	{
 		super(workloadId);
+		setType(RequestType.ONDEMAND);
 	}
 
 	

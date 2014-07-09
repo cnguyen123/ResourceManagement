@@ -72,8 +72,12 @@ public class Request {
 	{
 		return (this.getEndTime()-this.getInitialTime());
 	}
-	public void setDuration(long duration){
+	private void setDuration(long duration){
 		this.duration=duration;
+	}
+	public void updateDuration()
+	{
+		setDuration(this.getEndTime()-this.getInitialTime());
 	}
 	
 
