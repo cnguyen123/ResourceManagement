@@ -10,12 +10,16 @@ import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.cloudbus.cloudsim.systemConfig.SystemProperties;
+
+
+
 
 
 
@@ -240,7 +244,7 @@ public class RequestClassify {
 		//split those reserved request which have the duration greater than reservation length (in the simulation is 1 year)
 		splitRequestOutLength();
 		
-		//// resort list based on the intitial time
+		//// resort list based on the initial time
 		
 		Collections.sort(getReserved(), new Comparator<ReservedRequest>() {
 			@Override
@@ -359,13 +363,7 @@ public class RequestClassify {
 		workloadClassify();
 		writeRequestToFile();
 	}
-	/**
-	 *
-	 */
-	public void generateReservationRequest()
-	{
-		
-	}
+	
 	public static void main(String args[])
 	{
 
@@ -391,7 +389,201 @@ public class RequestClassify {
 	void setOndemand(ArrayList<OndemandRequest> ondemand) {
 		this.ondemand = ondemand;
 	}
-	
+	/**
+	 * calculate the standard deviation of request list duration
+	 * @param type the type of Request(reserved, ondemand, or spot)
+	 * @return
+	 */
+	public double getSTDofDuration(RequestType type)
+	{
+		long temp = 0;
+		int cnt = 0;
+		double mean = getMeanofDuration(type);
+		switch (type) {
+		case ONDEMAND:
+			for (OndemandRequest on : getOndemand()) {
+				long duration = on.getDuration();
+				temp += (mean - duration) * (mean - duration);
+				cnt++;
+			}
+			break;
+		case SPOT:
+			for (SpotRequest sp : getSpot()) {
+			long duration = sp.getDuration();
+			temp += (mean - duration) * (mean - duration);
+			cnt++;
+		}
+			
+			break;
+		case RESERVED:
+			for (ReservedRequest re : getReserved()) {
+				long duration = re.getDuration();
+				temp += (mean - duration) * (mean - duration);
+				cnt++;
+			}
+			break;
+		}
+		if (cnt > 0)
+			return Math.sqrt(temp / (double) cnt);
+
+		return -1;
+	}
+	/**
+	 * calculate the mean of duration of request list
+	 * @param type the type of request(reserved, ondemand, or spot)
+	 * @return
+	 */
+	public double getMeanofDuration(RequestType type)
+	{
+		long sum = 0;
+		int cnt = 0;
+		
+		switch (type) {
+		case ONDEMAND:
+			for(OndemandRequest on: getOndemand())
+			{
+				long duration=on.getDuration();
+				sum+=duration;
+				cnt++;
+			}
+			break;
+		case SPOT:
+			for(SpotRequest on: getSpot())
+			{
+				long duration=on.getDuration();
+				sum+=duration;
+				cnt++;
+			}
+			break;
+		case RESERVED:
+			for(ReservedRequest on: getReserved())
+			{
+				long duration=on.getDuration();
+				sum+=duration;
+				cnt++;
+			}
+			break;
+		}
+
+		if (cnt > 0)
+			return sum / (double) cnt;
+
+		return -1;
+	}
+	public ArrayList<ReservationWorkload> generateReservation()
+	{
+		HashMap<Integer, ArrayList<ReservedRequest>> users=new HashMap<Integer, ArrayList<ReservedRequest>>();
+		for(ReservedRequest reservedRequest:getReserved())
+		{
+			ArrayList<ReservedRequest>list=users.get(reservedRequest.getUserId());
+			//if the hashmap hasn't keep userid then we initial list request for that userid
+			if(list==null)
+			{
+				list=new ArrayList<ReservedRequest>();
+			}
+			//add reservedrequest belong to this user to list
+				list.add(reservedRequest);
+				users.put(reservedRequest.getUserId(), list);
+		}
+		ArrayList<ReservationWorkload> reservationWorkloadList=new ArrayList<ReservationWorkload>();
+		for (int i : users.keySet()) {
+			ArrayList<ReservedRequest> reservedListOfSpecificUser = users.get(i);
+			ArrayList<Pair> listPair = new ArrayList<RequestClassify.Pair>();
+			listPair.add(new Pair(-1, 0));
+			listPair.add(new Pair(Long.MAX_VALUE, 0));
+			
+			for (ReservedRequest re : reservedListOfSpecificUser) {
+				int l = getJobMaxNeed(listPair, re);
+				if (l > 0) {
+					ReservationWorkload res = new ReservationWorkload(
+							re.getUserId(), l, re.getInitialTime(),
+							re.getInitialTime() + reservedLengthInSecond);
+					reservationWorkloadList.add(res);
+					update(listPair, res.getStartTime(), res.getEndTime(),
+							res.getVms());
+				}
+				update(listPair, re.getInitialTime(), re.getEndTime(), -re.getNumberInstance());
+
+			} // end of for jobs
+		} // end of for users
+		return reservationWorkloadList;
+	}
+	private static void update(ArrayList<Pair> list, long start, long end,
+			int size) {
+		int i = 0;
+		for (i = 0; list.get(i).time < start; i++)
+			;
+
+		if (list.get(i).time == start)
+			list.get(i).available += size;
+		else {
+			Pair pair = new RequestClassify.Pair(start,
+					list.get(i - 1).available + size);
+			list.add(i, pair);
+		}
+
+		i++;
+
+		for (; list.get(i).time < end; i++)
+			list.get(i).available += size;
+
+		if (list.get(i).time != end) {
+			Pair pair = new Pair(end, list.get(i - 1).available - size);
+			list.add(i, pair);
+		}
+
+	}
+	private static int getJobMaxNeed(ArrayList<Pair> list, ReservedRequest job) {
+
+		int s = 0;
+		for (int i = 0; i < list.size(); i++) {
+			Pair pair = list.get(i);
+			if (pair.time >= job.getInitialTime()) {
+				if (pair.time == job.getInitialTime())
+					s = i;
+				else
+					s = i - 1;
+				break;
+			}
+		}
+
+		int k = 0;
+		Iterator<Pair> itr = list.iterator();
+		while (itr.hasNext() && k < s) {
+			itr.next();
+			itr.remove();
+			k++;
+		}
+
+		int max = 0;
+		for (int i = 0; i < list.size(); i++) {
+			Pair pair = list.get(i);
+			if (pair.time < job.getEndTime()) {
+				int need = job.getNumberInstance() - pair.available;
+				if (need > max)
+					max = need;
+			} else {
+				break;
+			}
+		}
+
+		return max;
+	}
+	public static class Pair {
+		@Override
+		public String toString() {
+			return "Pair [time=" + time + ", available=" + available + "]";
+		}
+
+		public Pair(long time, int available) {
+			super();
+			this.time = time;
+			this.available = available;
+		}
+
+		public long time;
+		public int available;
+	};
 	
 
 }
