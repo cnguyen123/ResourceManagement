@@ -4,7 +4,9 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
@@ -31,6 +33,8 @@ public class RequestClassify {
 	private ArrayList<SpotRequest>spot;
 	private ArrayList<Request>requestList;
 	private final long reservedLengthInSecond=SystemProperties.RESOURCE_MANAGEMENT_RESERVED_LENGTH.getValueAsInt()*3600;// in second
+	//
+	ArrayList<ReservationWorkload>list;
 	public RequestClassify()
 	{
 		this.setOndemand(new ArrayList<OndemandRequest>());
@@ -267,6 +271,15 @@ public class RequestClassify {
 						.getInitialTime())); // sort based on the start time
 			}
 		});
+		this.list=generateReservation();
+		Collections.sort(this.list, new Comparator<ReservationWorkload>() {
+			@Override
+			public int compare(ReservationWorkload r1,ReservationWorkload r2)
+			{
+				return new Long(r1.getStartTime()).compareTo(new Long(r2.getStartTime()));
+			}
+		});
+		
 	}
 	//
 	/**
@@ -275,7 +288,7 @@ public class RequestClassify {
 	 */
 	private void splitRequestOutLength()
 	{
-		System.out.println("There are some request in Reserved request has duration greater than the Reservation length.");
+		System.out.println("There are some requests in Reserved request have duration greater than the Reservation length.");
 		System.out.println("Need to split it into smaller reserved requests");
 		Iterator<ReservedRequest> ite=getReserved().iterator();
 		ArrayList<ReservedRequest>newrequestList=new ArrayList<ReservedRequest>();
@@ -305,6 +318,7 @@ public class RequestClassify {
 				//after looping, check the remaining duration whether it is greater than zero
 				if (duration > 0) {
 					ReservedRequest brokenReservedRequest=new ReservedRequest(requestId,initialTime,initialTime+duration,0,RequestType.RESERVED);
+					brokenReservedRequest.setNumberInstance(numberInstance);
 					newrequestList.add(brokenReservedRequest);
 					
 				}
@@ -317,29 +331,25 @@ public class RequestClassify {
 		}
 		
 	}
-	private void writeRequestToFile()
+	private void writeRequestToFile(FileOutput out) throws FileNotFoundException,IOException
 	{
-		try{
+		switch(out)		
+		{
+		case ONDEMAND:
 			System.out.println("Writing the ondemand requests to file...");
 			File ondemandFile=new File("data/request/OndemandRequest.txt");
 			BufferedWriter bwriter1=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(ondemandFile)));
+		
 			for(OndemandRequest on: this.getOndemand())
 			{
-				bwriter1.write(on.getRequestId()+" "+on.getUserId()+" "+on.getInitialTime()+" "+on.getEndTime()+" "+on.getNumberInstance());
-				bwriter1.write("\n");
+			bwriter1.write(on.getRequestId()+" "+on.getUserId()+" "+on.getInitialTime()+" "+on.getEndTime()+" "+on.getNumberInstance());
+			bwriter1.write("\n");
 			}
 			bwriter1.close();
-			//
-			System.out.println("Writing the spot requests to file...");
-			File spotFile=new File("data/request/SpotRequest.txt");
-			BufferedWriter bwriter2=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(spotFile)));
-			for(SpotRequest sp: this.getSpot())
-			{
-				bwriter2.write(sp.getRequestId()+" "+sp.getUserId()+" "+sp.getInitialTime()+" "+sp.getEndTime()+" "+sp.getNumberInstance());
-				bwriter2.write("\n");
-			}
-			bwriter2.close();
-			//
+			break;
+		
+		case RESERVED:
+		{
 			System.out.println("Writing the reserved requests to file...");
 			File reservedFile=new File("data/request/ReservedRequest.txt");
 			BufferedWriter bwriter3=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(reservedFile)));
@@ -349,19 +359,62 @@ public class RequestClassify {
 				bwriter3.write("\n");
 			}
 			bwriter3.close();
-			System.out.println("Finished writing to file!");
+			break;
+		}
+		case SPOT:
+		{
+			System.out.println("Writing the spot requests to file...");
+			File spotFile=new File("data/request/SpotRequest.txt");
+			BufferedWriter bwriter2=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(spotFile)));
+			for(SpotRequest sp: this.getSpot())
+			{
+			
+				bwriter2.write(sp.getRequestId()+" "+sp.getUserId()+" "+sp.getInitialTime()+" "+sp.getEndTime()+" "+sp.getNumberInstance());
+				bwriter2.write("\n");
+			}
+			bwriter2.close();
+			
+			break;
+		}
+		case RESERVATIONWORKLOAD:
+			System.out.println("Writing the Reservation workload to file...");
+			File reworkloadFile=new File("data/request/reservationworkload.txt");
+			BufferedWriter bwriter2=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(reworkloadFile)));
+			for(ReservationWorkload re: list)
+			{
+			
+				bwriter2.write(re.getUserId()+" "+re.getVms()+" "+re.getStartTime()+" "+re.getEndTime());
+				bwriter2.write("\n");
+			}
+			bwriter2.close();
+			
+			break;
+			
 			
 		}
-		catch(Exception ex)
-		{
-			System.out.println(ex.getMessage());
-		}
+		
 	}
 	
 	public void doClassify()
 	{
 		workloadClassify();
-		writeRequestToFile();
+		try{
+			writeRequestToFile(FileOutput.ONDEMAND);
+			writeRequestToFile(FileOutput.RESERVED);
+			writeRequestToFile(FileOutput.SPOT);
+			//
+			writeRequestToFile(FileOutput.RESERVATIONWORKLOAD);
+		}
+		catch(FileNotFoundException fnfex)
+		{
+			System.out.println(fnfex.getMessage());
+		}
+		catch(IOException ioex)
+		{
+			System.out.println(ioex.getMessage());
+		}
+	
+		
 	}
 	
 	public static void main(String args[])
@@ -470,6 +523,14 @@ public class RequestClassify {
 
 		return -1;
 	}
+	/**
+	 * this function used to create reservation workload based on the reserved contract. It follows the lazy policy
+	 * more specifically, every reserved requests of each user arrive, this function check this user's reserved capacity 
+	 * still has available vm instances suitable to host this task or not. If there is suitalbe vm avaialbe, the job will be
+	 * host on that Vm, otherwise, user has to request new reserved contract with provider with number instance needed to 
+	 * host the job.
+	 * @return list of reservation workload
+	 */
 	public ArrayList<ReservationWorkload> generateReservation()
 	{
 		HashMap<Integer, ArrayList<ReservedRequest>> users=new HashMap<Integer, ArrayList<ReservedRequest>>();
@@ -481,13 +542,15 @@ public class RequestClassify {
 			{
 				list=new ArrayList<ReservedRequest>();
 			}
-			//add reservedrequest belong to this user to list
+			//add all reserved jobs which are jobs waiting for running on reserved instance belong to this user to list
 				list.add(reservedRequest);
 				users.put(reservedRequest.getUserId(), list);
 		}
+		//this is the list of all reserved instance request will be sent to provider to create new reserved instances
 		ArrayList<ReservationWorkload> reservationWorkloadList=new ArrayList<ReservationWorkload>();
 		for (int i : users.keySet()) {
 			ArrayList<ReservedRequest> reservedListOfSpecificUser = users.get(i);
+			//each user will have one listPair represents the list of all reserved requests from this user
 			ArrayList<Pair> listPair = new ArrayList<RequestClassify.Pair>();
 			listPair.add(new Pair(-1, 0));
 			listPair.add(new Pair(Long.MAX_VALUE, 0));
@@ -495,6 +558,8 @@ public class RequestClassify {
 			for (ReservedRequest re : reservedListOfSpecificUser) {
 				int l = getJobMaxNeed(listPair, re);
 				if (l > 0) {
+					//if the program come into this, means that it needs to create new reserved request because the user's reserved instance capacity
+					//is not enough for hosting this job
 					ReservationWorkload res = new ReservationWorkload(
 							re.getUserId(), l, re.getInitialTime(),
 							re.getInitialTime() + reservedLengthInSecond);
@@ -511,19 +576,21 @@ public class RequestClassify {
 	private static void update(ArrayList<Pair> list, long start, long end,
 			int size) {
 		int i = 0;
+		//this loop in the pair list to get the exact index of position the new pair will be inserted
 		for (i = 0; list.get(i).time < start; i++)
 			;
-
+		//check if there exists a pair in list that has time equal to started time of reserved instance
 		if (list.get(i).time == start)
 			list.get(i).available += size;
 		else {
+			//otherwise create new Pair and add in that index
 			Pair pair = new RequestClassify.Pair(start,
 					list.get(i - 1).available + size);
 			list.add(i, pair);
 		}
 
 		i++;
-
+		//update those Pairs which have time less than end Time of new reserved instance
 		for (; list.get(i).time < end; i++)
 			list.get(i).available += size;
 
@@ -533,6 +600,12 @@ public class RequestClassify {
 		}
 
 	}
+	/**
+	 * 
+	 * @param list list of Pair represents the reserved requests that job owner has requested provider so far
+	 * @param job specific job which needs to get max needed
+	 * @return
+	 */
 	private static int getJobMaxNeed(ArrayList<Pair> list, ReservedRequest job) {
 
 		int s = 0;
@@ -547,6 +620,7 @@ public class RequestClassify {
 			}
 		}
 
+		//
 		int k = 0;
 		Iterator<Pair> itr = list.iterator();
 		while (itr.hasNext() && k < s) {
@@ -558,7 +632,9 @@ public class RequestClassify {
 		int max = 0;
 		for (int i = 0; i < list.size(); i++) {
 			Pair pair = list.get(i);
-			if (pair.time < job.getEndTime()) {
+			//if the job end time is greater than this reserved instance contract life
+			//then get the
+			if (pair.time < job.getEndTime()) { 
 				int need = job.getNumberInstance() - pair.available;
 				if (need > max)
 					max = need;
@@ -569,6 +645,17 @@ public class RequestClassify {
 
 		return max;
 	}
+	
+	/**
+	 * enumeration of File output. It includes on demand file, reserved file, spot request file and the reservation workload file
+	 * @author lnguyen2
+	 *
+	 */
+	public enum FileOutput{
+		ONDEMAND,RESERVED,SPOT,RESERVATIONWORKLOAD
+		
+	}
+	
 	public static class Pair {
 		@Override
 		public String toString() {

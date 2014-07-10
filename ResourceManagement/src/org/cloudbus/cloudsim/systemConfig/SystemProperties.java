@@ -16,7 +16,14 @@ public enum SystemProperties {
 	RESOURCE_MANAGEMENT_RESERVED_LENGTH("revenueManagement.reservation.length",SystemPropertyType.INTEGER),
 	RESOURCE_MANAGEAMENT_WARMUP("revenueManagement.warmup.time",SystemPropertyType.INTEGER),
 	RESOURCE_MANAGEMENT_RESERVED_PREMIUM("revenueManagement.reserved.premium",SystemPropertyType.INTEGER),
-	RESOURCE_MANAGEMENT_TIME_SLOT("revenueManagement.timeslot.size",SystemPropertyType.INTEGER)
+	RESOURCE_MANAGEMENT_TIME_SLOT("revenueManagement.timeslot.size",SystemPropertyType.INTEGER),
+	RESOURCE_MANAGEMENT_ONDEMAND_PRICE("revenueManagement.ondemand.price",SystemPropertyType.DOUBLE),
+	RESOURCE_MANAGEMENT_RESERVED_DISCOUNT_FACTOR("revenueManagement.reserved.discount.factor",SystemPropertyType.DOUBLE),
+	RESOURCE_MANAGEMENT_SPOT_DISCOUNT_FACTOR("revenueManagement.spot.discount.factor",SystemPropertyType.DOUBLE),
+	RESOURCE_MANAGEMENT_DATACENTER_CAPACITY("revenueManagement.capacity",SystemPropertyType.LONG),
+	RESOURCE_MANAGEMENT_SLAVIOLATION_COMPENSATION("revenueManagement.SLAviolation.compensation",SystemPropertyType.DOUBLE),
+	RESOURCE_MANAGEMENT_OVERBOOKING_THRESHOLD("revenueManagement.overbook.threshold",SystemPropertyType.DOUBLE)
+	;
 	
 	//TODO more attributes will be added later 
 	;
